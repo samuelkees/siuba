@@ -3,7 +3,7 @@ siuba
 
 > [!WARNING]
 > **Generated with Claude LLM — Currently Testing**
-> This targets siuba with pandas >=3.0.0. I'm actively testing the integration but haven't fully reviewed the codebase for compatibility. Check [[MIGRATION]] for a comprehensive overview of changes.
+> This targets siuba with pandas >=3.0.0. I'm actively testing the integration but haven't fully reviewed the codebase for compatibility. Check [MIGRATION](./MIGRATION.md) for a comprehensive overview of changes.
 
 *scrappy data analysis, with seamless support for pandas and SQL*
 
