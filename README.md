@@ -1,6 +1,10 @@
 siuba
 =====
 
+> [!WARNING]
+> **Generated with Claude LLM — Currently Testing**
+> This targets siuba with pandas >=3.0.0. I'm actively testing the integration but haven't fully reviewed the codebase for compatibility. Check [[MIGRATION]] for a comprehensive overview of changes.
+
 *scrappy data analysis, with seamless support for pandas and SQL*
 
 [![CI](https://github.com/machow/siuba/workflows/CI/badge.svg)](https://github.com/machow/siuba/actions?query=workflow%3ACI+branch%3Amain)
