@@ -91,7 +91,7 @@ def _bounce_groupby(f):
         if isinstance(__data, pd.DataFrame):
             return f(__data, *args, **kwargs)
 
-        groupings = __data.grouper.groupings
+        groupings = __data._grouper.groupings
         group_cols = [ping.name for ping in groupings]
 
         res = f(__data.obj, *args, **kwargs)
@@ -139,9 +139,9 @@ def _mutate_cols(__data, args, kwargs):
         for col_name, col_ser in res_arg.items():
             # need to put on the frame so subsequent args, kwargs can use
             if is_scalar:
-                df_tmp.loc[:, col_name] = col_ser.iloc[0]
+                df_tmp[col_name] = col_ser.iloc[0]
             else:
-                df_tmp.loc[:, col_name] = col_ser.array
+                df_tmp[col_name] = col_ser.array
 
             result_names[col_name] = True
 
@@ -154,7 +154,7 @@ def _mutate_cols(__data, args, kwargs):
 
 
 def _make_groupby_safe(gdf):
-    return gdf.obj.groupby(gdf.grouper, group_keys=False, dropna=False)
+    return gdf.obj.groupby(gdf._grouper, group_keys=False, dropna=False)
 
 
 MSG_TYPE_ERROR = "The first argument to {func} must be one of: {types}"
@@ -260,7 +260,7 @@ def mutate(__data, *args, **kwargs):
 @mutate.register(DataFrameGroupBy)
 def _mutate(__data, *args, **kwargs):
     out = __data.obj.copy()
-    groupings = {ping.name: ping for ping in __data.grouper.groupings}
+    groupings = {ping.name: ping for ping in __data._grouper.groupings}
 
     f_transmute = transmute.dispatch(pd.DataFrame)
 
@@ -357,7 +357,7 @@ def group_by(__data, *args, add = False, **kwargs):
         tmp_df[k] = computed[k]
 
     if isinstance(__data, DataFrameGroupBy) and add:
-        groupings = {el.name: el for el in __data.grouper.groupings}
+        groupings = {el.name: el for el in __data._grouper.groupings}
 
         for varname in by_vars:
             # ensures group levels are recalculated if varname was in transmute
@@ -459,16 +459,17 @@ def filter(__data, *args):
 
 @filter.register(DataFrameGroupBy)
 def _filter(__data, *args):
-    groupings = __data.grouper.groupings
+    group_cols = [ping.name for ping in __data._grouper.groupings]
     df_filter = filter.registry[pd.DataFrame]
 
-    df = __data.apply(df_filter, *args)
+    gdf = __data.obj.groupby(group_cols, group_keys=True)
+    df = gdf.apply(df_filter, *args, include_groups=False)
 
-    # will drop all but original index, then sort to get original order
+    # restore group columns from index, preserve original column order
     group_by_lvls = list(range(df.index.nlevels - 1))
-    ordered = df.reset_index(group_by_lvls, drop = True).sort_index()
+    ordered = df.reset_index(group_by_lvls, drop=False).sort_index()
+    ordered = ordered[__data.obj.columns]
 
-    group_cols = [ping.name for ping in groupings]
     return ordered.groupby(group_cols)
 
 
@@ -569,11 +570,11 @@ def _summarize(__data, *args, **kwargs):
             " Regrouping with these arguments set."
         )
 
-        if __data.grouper.dropna:
+        if __data._grouper.dropna:
             # will need to recalculate groupings, otherwise it ignores dropna
-            group_cols = [ping.name for ping in __data.grouper.groupings]
+            group_cols = [ping.name for ping in __data._grouper.groupings]
         else:
-            group_cols = __data.grouper.groupings
+            group_cols = __data._grouper.groupings
         __data = __data.obj.groupby(group_cols, dropna=False, group_keys=True)
 
     df_summarize = summarize.registry[pd.DataFrame]
@@ -635,7 +636,7 @@ def transmute(__data, *args, **kwargs):
 
 @transmute.register(DataFrameGroupBy)
 def _transmute(__data, *args, **kwargs):
-    groupings = {ping.name: ping for ping in __data.grouper.groupings}
+    groupings = {ping.name: ping for ping in __data._grouper.groupings}
 
     f_transmute = transmute.dispatch(pd.DataFrame)
 
@@ -753,7 +754,7 @@ def _select(__data, *args, **kwargs):
     var_list = var_create(*args)
     od = var_select(__data.obj.columns, *var_list)
 
-    group_cols = [ping.name for ping in __data.grouper.groupings]
+    group_cols = [ping.name for ping in __data._grouper.groupings]
 
     res = select(__data.obj, *args, **kwargs)
 
@@ -805,7 +806,7 @@ def rename(__data, **kwargs):
 @rename.register(DataFrameGroupBy)
 def _rename(__data, **kwargs):
     col_names = {simple_varname(v):k for k,v in kwargs.items()}
-    group_cols = [ping.name for ping in __data.grouper.groupings]
+    group_cols = [ping.name for ping in __data._grouper.groupings]
 
     res = rename(__data.obj, **kwargs)
 
@@ -911,9 +912,9 @@ def arrange(__data, *args):
         if col is not None:
             sort_cols.append(col)
         else:
-            # TODO: could screw up if user has columns names that are ints...
-            sort_cols.append(n_cols + ii)
-            tmp_cols.append(n_cols + ii)
+            tmp_name = f"__arrange_tmp_{ii}"
+            sort_cols.append(tmp_name)
+            tmp_cols.append(tmp_name)
 
             res = f(df)
 
@@ -923,7 +924,7 @@ def arrange(__data, *args):
                     "DataFrame, which is currently unsupported."
                 )
 
-            df[n_cols + ii] = res
+            df[tmp_name] = res
 
 
     return df.sort_values(by = sort_cols, kind = "mergesort", ascending = ascending) \
@@ -942,7 +943,7 @@ def _arrange(__data, *args):
 
     df_sorted = arrange(__data.obj, *args)
 
-    group_cols = [ping.name for ping in __data.grouper.groupings]
+    group_cols = [ping.name for ping in __data._grouper.groupings]
     return df_sorted.groupby(group_cols)
 
 
@@ -1010,22 +1011,23 @@ def distinct(__data, *args, _keep_all = False, **kwargs):
 @distinct.register(DataFrameGroupBy)
 def _distinct(__data, *args, _keep_all = False, **kwargs):
 
-    group_names = [ping.name for ping in __data.grouper.groupings]
+    group_names = [ping.name for ping in __data._grouper.groupings]
 
+    if not (args or kwargs):
+        result = __data.obj.drop_duplicates().reset_index(drop=True)
+    else:
+        new_names, df_res = _mutate_cols(__data.obj, args, kwargs)
+        # include group columns in dedup so distinct is per-group
+        dedup_cols = group_names + [c for c in new_names if c not in group_names]
+        result = df_res.drop_duplicates(dedup_cols).reset_index(drop=True)
 
-    f_distinct = distinct.dispatch(type(__data.obj))
+        if not _keep_all:
+            # prepend group cols not in new_names, then new_names in order
+            new_set = set(new_names)
+            keep = [c for c in group_names if c not in new_set] + list(new_names)
+            result = result[keep]
 
-    tmp_data = (__data
-        .apply(f_distinct, *args, _keep_all=_keep_all, **kwargs)
-    )
-
-    index_keys = tmp_data.index.names[:-1]
-    keys_to_drop = [k for k in index_keys if k in tmp_data.columns]
-    keys_to_keep = [k for k in index_keys if k not in tmp_data.columns]
-
-    final = tmp_data.reset_index(keys_to_drop, drop=True).reset_index(keys_to_keep)
-
-    return final.groupby(group_names)
+    return result.groupby(group_names)
 
 
 # if_else, case_when ==========================================================
@@ -1397,7 +1399,7 @@ def _fast_split_df(g_df):
     # right now, this is essentially a copy of
     # pandas.core.groupby.ops.DataSplitter.__iter__
     from pandas._libs import lib
-    splitter = g_df.grouper._get_splitter(g_df.obj)
+    splitter = g_df._grouper._get_splitter(g_df.obj)
 
     starts, ends = lib.generate_slices(splitter.slabels, splitter.ngroups)
 
@@ -1454,7 +1456,7 @@ def nest(__data, *args, key = "data"):
 
     # split into sub DataFrames, with only nest_keys as columns
     g_df = __data.groupby(grp_keys)
-    splitter = g_df.grouper._get_splitter(g_df.obj[nest_keys])
+    splitter = g_df._grouper._get_splitter(g_df.obj[nest_keys])
 
     # TODO: iterating over splitter now only produces 1 item (the dataframe)
     # check backwards compat
@@ -1466,7 +1468,7 @@ def nest(__data, *args, key = "data"):
         # in pandas 1.3, each entry is just the dataframe
         return entry
 
-    result_index = g_df.grouper.result_index
+    result_index = g_df._grouper.result_index
     nested_dfs = [_extract_subdf_pandas_1_3(x) for x in splitter]
 
     out = pd.DataFrame({key: nested_dfs}, index = result_index).reset_index()
@@ -1477,7 +1479,7 @@ def nest(__data, *args, key = "data"):
 def _nest(__data, *args, key = "data"):
     from siuba.dply.tidyselect import VarAnd
 
-    grp_keys = [x.name for x in __data.grouper.groupings]
+    grp_keys = [x.name for x in __data._grouper.groupings]
     if None in grp_keys:
         raise NotImplementedError("All groupby variables must be named when using nest")
 
@@ -1513,7 +1515,7 @@ def unnest(__data, key = "data"):
         
     """
     # TODO: currently only takes key, not expressions
-    nrows_nested = __data[key].apply(len, convert_dtype = True)
+    nrows_nested = __data[key].apply(len)
     indx_nested = nrows_nested.index.repeat(nrows_nested)
 
     grp_keys = list(__data.columns[__data.columns != key])
@@ -1850,7 +1852,7 @@ def head(__data, n = 5):
 
 @head.register(DataFrameGroupBy)
 def _head_gdf(__data, n = 5):
-    groupings = __data.grouper.groupings
+    groupings = __data._grouper.groupings
     group_cols = [ping.name for ping in groupings]
 
     df_subset = __data.obj.head(n)
@@ -1983,7 +1985,7 @@ def gather(__data, key = "key", value = "value", *args, drop_na = False, convert
 
 @gather.register(DataFrameGroupBy)
 def _gather(__data, key = "key", value = "value", *args, **kwargs):
-    group_cols = [ping.name for ping in __data.grouper.groupings]
+    group_cols = [ping.name for ping in __data._grouper.groupings]
 
     res = gather(__data.obj, key, value, *args, **kwargs)
 
@@ -2066,7 +2068,7 @@ def spread(__data, key, value, fill = None, reset_index = True):
 @spread.register(DataFrameGroupBy)
 def _spread_gdf(__data, *args, **kwargs):
 
-    groupings = __data.grouper.groupings
+    groupings = __data._grouper.groupings
 
     df = __data.obj
 
@@ -2082,7 +2084,18 @@ def _spread_gdf(__data, *args, **kwargs):
     return out.groupby(group_names)
 
 # Expand/Complete ====================================================================
-from pandas.core.reshape.util import cartesian_product
+def cartesian_product(X):
+    """Return arrays of cartesian product of input arrays.
+
+    Replacement for pandas.core.reshape.util.cartesian_product,
+    removed in pandas 3.0.
+    """
+    lenX = np.fromiter((len(x) for x in X), dtype=np.intp, count=len(X))
+    cumprodX = np.cumprod(lenX)
+    a = np.roll(cumprodX, 1)
+    a[0] = 1
+    b = cumprodX[-1] // cumprodX
+    return [np.tile(np.repeat(x, r), t) for x, r, t in zip(X, b, a)]
 
 
 def _unique_name(prefix: str, names: "set[str]"):
@@ -2098,9 +2111,7 @@ def _unique_name(prefix: str, names: "set[str]"):
 
 
 def _expand_column(x):
-    from pandas.api.types import is_categorical_dtype
-
-    if is_categorical_dtype(x):
+    if isinstance(x.dtype, pd.CategoricalDtype):
         if x.isna().any():
             return [*x.cat.categories, None]
 
@@ -2388,7 +2399,7 @@ def separate(__data, col, into, sep = r"[^a-zA-Z0-9]",
 @separate.register(DataFrameGroupBy)
 def _separate_gdf(__data, *args, **kwargs):
 
-    groupings = __data.grouper.groupings
+    groupings = __data._grouper.groupings
 
     df = __data.obj
 
@@ -2461,7 +2472,7 @@ def unite(__data, col, *args, sep = "_", remove = True):
 def _unite_gdf(__data, *args, **kwargs):
     # TODO: consolidate these trivial group by dispatched funcs
 
-    groupings = __data.grouper.groupings
+    groupings = __data._grouper.groupings
 
     df = __data.obj
 
@@ -2533,7 +2544,7 @@ def extract(
 def _extract_gdf(__data, *args, **kwargs):
     # TODO: consolidate these trivial group by dispatched funcs
 
-    groupings = __data.grouper.groupings
+    groupings = __data._grouper.groupings
 
     df = __data.obj
 

@@ -201,7 +201,7 @@ def fast_mutate(__data, **kwargs):
 
     # perform fast method ----
     out = __data.obj.copy()
-    groupings = __data.grouper.groupings
+    groupings = __data._grouper.groupings
 
 
     for name, expr in zip(kwargs, new_vals):
@@ -225,7 +225,7 @@ def fast_filter(__data, *args):
 
     # perform fast method ----
     out = []
-    groupings = __data.grouper.groupings
+    groupings = __data._grouper.groupings
 
     for expr in args:
         res = grouped_eval(__data, expr)
@@ -253,10 +253,10 @@ def fast_summarize(__data, **kwargs):
         return summarize(__data, **kwargs)
 
     # perform fast method ----
-    groupings = __data.grouper.groupings
+    groupings = __data._grouper.groupings
 
     # TODO: better way of getting this frame?
-    out = __data.grouper.result_index.to_frame()
+    out = __data._grouper.result_index.to_frame()
     
     for name, expr in kwargs.items():
         # special case: set scalars directly

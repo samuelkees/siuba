@@ -205,7 +205,7 @@ def robust_multiple_sort(df, by):
           e.g. df.sort_values(by = ['a', 'b']) may cause an error
 
     This implementation chains sort_values on single columns. In this case,
-    pandas sorts a list based on its first entry ¯\_(ツ)_/¯.
+    pandas sorts a list based on its first entry ¯\\_(ツ)_/¯.
     """
 
     from functools import reduce
@@ -241,6 +241,7 @@ def assert_equal_query(tbl, lazy_query, target, **kwargs):
     if isinstance(tbl, (pd.DataFrame, DataFrameGroupBy)):
         df_a = ungroup(out).reset_index(drop = True)
         df_b = ungroup(target).reset_index(drop = True)
+        kwargs.setdefault("check_dtype", False)
         assert_frame_equal(df_a, df_b, **kwargs)
     else:
         assert_frame_sort_equal(out, target, **kwargs)

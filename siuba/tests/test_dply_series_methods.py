@@ -15,7 +15,6 @@ from siuba import filter, mutate, summarize, group_by, arrange
 from pandas.testing import assert_frame_equal, assert_series_equal
 import numpy as np
 import pandas as pd
-import pkg_resources
 
 
 def get_action_kind(spec_entry):
@@ -288,7 +287,12 @@ def test_frame_mutate(skip_backend, backend, entry):
             )
 
     # Run test for equality w/ grouped pandas ----
-    g_dst = crnt_data.groupby('g').apply(lambda d: d.assign(result = call_expr)).reset_index(drop = True)
+    g_dst = (
+        crnt_data.groupby('g', group_keys=False)
+        .apply(lambda d: d.assign(result = call_expr), include_groups=False)
+    )
+    g_dst = crnt_data[['g']].join(g_dst)
+    g_dst = g_dst[crnt_data.columns.tolist() + ['result']]
     g_dst['result'] = cast_result_type(entry, backend, g_dst['result'])
     assert_equal_query(
             df,

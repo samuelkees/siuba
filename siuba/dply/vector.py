@@ -209,18 +209,17 @@ def row_number(x):
     
     arr = np.arange(1, n + 1)
 
-    # could use single dispatch, but for now ensure output data type matches input
     if isinstance(x, pd.Series):
-        return x._constructor(arr, x.index, fastpath = True)
+        return x._constructor(arr, index=x.index)
 
-    return pd.Series(arr, x.index, fastpath = True)
+    return pd.Series(arr, index=x.index)
 
 
 @row_number.register(GroupBy)
 def _row_number_grouped(g: GroupBy) -> GroupBy:
     out = np.ones(len(g.obj), dtype = int)
 
-    indices = g.grouper.indices
+    indices = g._grouper.indices
     for g_key, inds in indices.items():
         out[inds] = np.arange(1, len(inds) + 1, dtype = int)
     

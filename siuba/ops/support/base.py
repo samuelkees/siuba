@@ -1,6 +1,6 @@
 import json
 import yaml
-import pkg_resources
+from importlib.resources import files
 import pandas as pd
 
 from siuba.ops import ALL_OPS
@@ -171,7 +171,7 @@ df_spec = (full_methods
         .drop(columns = ALL_BACKENDS)
         )
 
-fname_spec = pkg_resources.resource_filename("siuba.ops.support", "examples.yml")
+fname_spec = files("siuba.ops.support").joinpath("examples.yml")
 with open(fname_spec, "r") as f:
     orig_spec = yaml.safe_load(f)
 

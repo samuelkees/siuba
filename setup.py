@@ -26,8 +26,8 @@ setup(
     url='https://github.com/machow/siuba',
     keywords=['package', ],
     install_requires=[
-        "pandas>=0.24.0,<2.1.0",
-        "numpy>=1.12.0",
+        "pandas>=3.0.0",
+        "numpy>=2.0.0",
         "SQLAlchemy>=1.2.19",
         "PyYAML>=3.0.0"
     ],
@@ -53,16 +53,17 @@ setup(
             "gapminder==0.1",
         ],
     },
-    python_requires=">=3.7",
+    python_requires=">=3.9",
     include_package_data=True,
     long_description=README,
     long_description_content_type="text/markdown",
     classifiers=[
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
     ],
 )
 

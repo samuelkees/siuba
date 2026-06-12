@@ -81,11 +81,19 @@ def test_mutate_vector(backend, func, simple_data):
             check_dtype = False
             )
 
-    # grouped
+    # grouped — build target by applying func within each group
+    g_target = (
+        simple_data
+        .groupby('g', group_keys=False)
+        .apply(lambda d: d.assign(y = func), include_groups=False)
+    )
+    # restore group column and original column order
+    g_target = simple_data[['g']].join(g_target)[simple_data.columns.tolist() + ['y']]
+
     assert_equal_query(
             df,
             arrange(_.idx) >> group_by(_.g) >> mutate(y = func),
-            simple_data.groupby('g').apply(lambda d: d.assign(y = func)).reset_index(drop = True),
+            g_target,
             check_dtype = False
             )
 

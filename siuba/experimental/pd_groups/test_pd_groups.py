@@ -170,7 +170,7 @@ def test_fast_methods_constant():
 
     # summarize ----
     out = fast_summarize(gdf, y = 1)
-    agg_frame = gdf.grouper.result_index.to_frame().reset_index(drop = True)
+    agg_frame = gdf._grouper.result_index.to_frame().reset_index(drop = True)
     assert_frame_equal(agg_frame.assign(y = 1), out)
 
     # filter ----
@@ -202,7 +202,7 @@ def test_fast_methods_lambda():
     # summarize ----
     out = fast_summarize(gdf, y = lambda d: len(d['x']))
 
-    agg_frame = gdf.grouper.result_index.to_frame()
+    agg_frame = gdf._grouper.result_index.to_frame()
     assert_frame_equal(
             agg_frame.assign(y = gdf['x'].agg('size')).reset_index(drop = True),
             out

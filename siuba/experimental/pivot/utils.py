@@ -7,7 +7,7 @@ from typing import Callable
 
 
 def group_vars(df: pd.DataFrame) -> "list[str]":
-    groupings = df.grouper.groupings
+    groupings = df._grouper.groupings
     group_cols = [ping.name for ping in groupings]
     return group_cols
 

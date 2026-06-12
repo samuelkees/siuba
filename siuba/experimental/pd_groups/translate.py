@@ -139,7 +139,7 @@ def method_agg_singleton(name, is_property, accessor):
         dtype = 'object' if singleton is None else None
 
         # note that when the value is None, need to explicitly make dtype object
-        res = pd.Series(singleton, index = __ser.grouper.levels, dtype = dtype) 
+        res = pd.Series(singleton, index = __ser._grouper.levels, dtype = dtype) 
 
         return GroupByAgg.from_result(res, __ser)
     return f

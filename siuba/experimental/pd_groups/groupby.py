@@ -10,9 +10,9 @@ from pandas.api.types import is_scalar
 from pandas.core.groupby import SeriesGroupBy, DataFrameGroupBy
 
 try:
-    from pandas.core.algorithms import take_1d
+    from pandas.core.array_algos.take import take_nd as take_1d
 except ImportError:
-    from pandas.core.array_algos.take import take_1d
+    from pandas.core.algorithms import take_nd as take_1d
 
 
 # Custom SeriesGroupBy class ==================================================
@@ -82,7 +82,7 @@ class GroupByAgg(SeriesGroupBy):
         sig = inspect.signature(result.groupby)
         bound = sig.bind(by = result.index)
         
-        orig_grouper = getattr(src_groupby, "_orig_grouper", src_groupby.grouper)
+        orig_grouper = getattr(src_groupby, "_orig_grouper", src_groupby._grouper)
         orig_obj     = getattr(src_groupby, "_orig_obj", src_groupby.obj)
         
         return cls(
@@ -117,7 +117,7 @@ def _broadcast_agg_gba(groupby):
     """
 
     src = groupby._orig_obj
-    ids, _, ngroup = groupby._orig_grouper.group_info
+    ids = groupby._orig_grouper.codes_info
     out = take_1d(groupby.obj._values, ids)
     
     # Note: reductions like siuba.dply.vector.n(_) map DataFrameGroupBy -> GroupByAgg,
@@ -144,7 +144,7 @@ def _(groupby, res):
 @regroup.register(SeriesGroupBy)
 def _(groupby, res):
     # TODO: this will always return SeriesGroupBy, even if groupby is a subclass
-    return res.groupby(groupby.grouper)
+    return res.groupby(groupby._grouper)
 
 
 # is_compatible ----
@@ -153,8 +153,8 @@ def _(groupby, res):
 def is_compatible(grp1: SeriesGroupBy, grp2: SeriesGroupBy):
     """Return whether objects have identical original groupers."""
 
-    grouper1 = getattr(grp1, '_orig_grouper', grp1.grouper)
-    grouper2 = getattr(grp2, '_orig_grouper', grp2.grouper)
+    grouper1 = getattr(grp1, '_orig_grouper', grp1._grouper)
+    grouper2 = getattr(grp2, '_orig_grouper', grp2._grouper)
 
     return grouper1 is grouper2
 

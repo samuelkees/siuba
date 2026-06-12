@@ -54,8 +54,8 @@ def test_spread_grouped_df(df, wide_df):
     gdf_wide = wide_df.groupby('id')
     assert_frame_equal(res.obj, gdf_wide.obj)
 
-    assert len(res.grouper.groupings) == 1
-    assert res.grouper.groupings[0].name == "id"
+    assert len(res._grouper.groupings) == 1
+    assert res._grouper.groupings[0].name == "id"
 
 
 def test_gather(df, wide_df):
@@ -111,7 +111,7 @@ def test_gather_group_by_no_match_still_grouped(wide_df):
 def test_gather_group_by_preserves_groups(df_no_drop, wide_df):
     res = gather(wide_df.groupby("id"), "m", "v", _.a, _.b)
     
-    groupings = res.grouper.groupings
+    groupings = res._grouper.groupings
     
     assert len(groupings) == 1
     assert groupings[0].name == "id"
@@ -122,7 +122,7 @@ def test_gather_group_by_preserves_groups(df_no_drop, wide_df):
 def test_gather_group_by_drops_gathered_groups(df_no_drop, wide_df):
     g_res = gather(wide_df.groupby(["id", "a"]), "m", "v", _.a, _.b)
 
-    groupings = g_res.grouper.groupings
+    groupings = g_res._grouper.groupings
     assert len(groupings) == 1
     assert groupings[0].name == "id"
 

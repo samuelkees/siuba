@@ -43,7 +43,7 @@ def assert_grouping_names(gdf, names):
         grouping_names = list(gdf.group_by)
     else:
         assert isinstance(gdf, DataFrameGroupBy)
-        groupings = gdf.grouper.groupings
+        groupings = gdf._grouper.groupings
         grouping_names = [g.name for g in groupings]
 
     assert len(grouping_names) == len(names)

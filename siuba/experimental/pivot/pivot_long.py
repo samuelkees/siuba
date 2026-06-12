@@ -156,7 +156,7 @@ def pivot_longer(
 @pivot_longer.register(DataFrameGroupBy)
 def _pivot_longer_gdf(__data, *args, **kwargs):
     # TODO: consolidate all verbs that punt to DataFrame version (#118)
-    prior_groups = [el.name for el in __data.grouper.groupings]
+    prior_groups = [el.name for el in __data._grouper.groupings]
 
     df = __data.obj
     res = pivot_longer(df, *args, **kwargs)

@@ -18,17 +18,17 @@ def __dir__():
 
 def _load_data_csv_gz(name):
     import pandas as pd
-    import pkg_resources
+    from importlib.resources import files
 
-    fname = pkg_resources.resource_filename("siuba.data", f"{name}.csv.gz")
+    fname = files("siuba.data").joinpath(f"{name}.csv.gz")
     return pd.read_csv(fname)
 
 
 def _load_data_csv(name):
     import pandas as pd
-    import pkg_resources
+    from importlib.resources import files
 
-    fname = pkg_resources.resource_filename("siuba.data", f"{name}.csv")
+    fname = files("siuba.data").joinpath(f"{name}.csv")
     return pd.read_csv(fname)
 
 
